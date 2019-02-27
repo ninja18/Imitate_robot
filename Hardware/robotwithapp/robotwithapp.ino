@@ -1,4 +1,4 @@
-#include <SoftwareSerial.h>
+//#include <SoftwareSerial.h>
 #include <Servo.h>
 
 Servo servo01;
@@ -8,36 +8,32 @@ Servo servo04;
 Servo servo05;
 Servo servo06;
 
-SoftwareSerial Bluetooth(3, 4); // Arduino(RX, TX) - HC-05 Bluetooth (TX, RX)
+//SoftwareSerial Bluetooth(3, 4); // Arduino(RX, TX) - HC-05 Bluetooth (TX, RX)
 
 int servo1Pos, servo2Pos, servo3Pos, servo4Pos, servo5Pos, servo6Pos; // current position
 int servo1PPos, servo2PPos, servo3PPos, servo4PPos, servo5PPos, servo6PPos; // previous position
-uint8_t servo01SP[50], servo02SP[50], servo03SP[50], servo04SP[50], servo05SP[50], servo06SP[50]; // for storing positions/steps
+uint8_t servo01SP[50] {60,60,90,60,60}, servo02SP[50] {150,90,90,120,120}, servo03SP[50] {35,35,35,35,35}, servo04SP[50] {140,140,40,40,40}, servo05SP[50] {85,85,85,85,85}, servo06SP[50] {80,80,80,80,120}; // for storing positions/steps
 
 uint8_t servo01Act[100], servo02Act[100], servo03Act[100], servo04Act[100], servo05Act[100], servo06Act[100]; // for actions
 uint8_t speedDelay = 20;
-uint8_t index = 0;
+uint8_t ind = 5;
 int tracker = 0;
 uint8_t tracker_idx = 0;
 String dataIn = "";
 
-servo01SP[0] = 90;
-servo02SP[0] = 150;
-servo03SP[0] = 35;
-servo04SP[0] = 140;
-servo05SP[0] = 85;
-servo06SP[0] = 80;
+
 
 void setup() {
-  servo01.attach(5);
-  servo02.attach(6);
-  servo03.attach(7);
-  servo04.attach(8);
-  servo05.attach(9);
-  servo06.attach(10);
-  Bluetooth.begin(38400); // Default baud rate of the Bluetooth module
-  Bluetooth.setTimeout(1);
+  servo01.attach(D5);
+  servo02.attach(D6);
+  servo03.attach(D7);
+  servo04.attach(D8);
+  servo05.attach(D3);
+  servo06.attach(D4);
+  //Bluetooth.begin(38400); // Default baud rate of the Bluetooth module
+  //Bluetooth.setTimeout(1);
   delay(20);
+  Serial.begin(115200);
   // Robot arm initial position
   servo1PPos = 90;
   servo01.write(servo1PPos);
@@ -51,6 +47,7 @@ void setup() {
   servo05.write(servo5PPos);
   servo6PPos = 80;
   servo06.write(servo6PPos);
+  Serial.println("Starting");
 }
 
 void loop() {
@@ -184,16 +181,22 @@ void loop() {
     // If button "RUN" is pressed
     if (dataIn.startsWith("RUN")) {*/
       runservo();  // Automatic mode - run the saved steps 
-      for(uint8_t i = 0; i <= tracker_idx;i++)
+      Serial.print("Actions collected is ");
+      Serial.println(tracker_idx);
+      for(uint8_t i = 0; i <= tracker_idx-1;i++)
       {
         Serial.print(servo01Act[i]);
-        Serial.print(servo01Act[i]);
-        Serial.print(servo01Act[i]);
-        Serial.print(servo01Act[i]);
-        Serial.print(servo01Act[i]);
-        Serial.print(servo01Act[i]);
-        Serial.print(servo01Act[i]);
-        Serial.println(); //,servo02Act[i],servo03Act[i],servo04Act[i],servo05Act[i],servo06Act[i]);
+        /*Serial.print(", ");
+        Serial.print(servo02Act[i]);
+        Serial.print(", ");
+        Serial.print(servo03Act[i]);
+        Serial.print(", ");
+        Serial.print(servo04Act[i]);
+        Serial.print(", ");
+        Serial.print(servo05Act[i]);
+        Serial.print(", ");
+        Serial.print(servo06Act[i]);*/
+        Serial.println("    OVer...."); //,servo02Act[i],servo03Act[i],servo04Act[i],servo05Act[i],servo06Act[i]);
       }
     /*}
     // If button "RESET" is pressed
@@ -214,9 +217,11 @@ void runservo() {
   //while (dataIn != "RESET") {  // Run the steps over and over again until "RESET" button is pressed
 
     tracker = millis();
+    Serial.print("The tracker is ");
+    Serial.println(tracker);
     tracker_idx = 0;
-    for (int i = 0; i <= index - 2; i++) { // Run through all steps(index)
-      if (Bluetooth.available() > 0) {      // Check for incomding data
+    for (uint8_t i = 0; i <= ind - 2; i++) { // Run through all steps(index)
+      /*if (Bluetooth.available() > 0) {      // Check for incomding data
         dataIn = Bluetooth.readString();
         if ( dataIn == "PAUSE") {           // If button "PAUSE" is pressed
           while (dataIn != "RUN") {         // Wait until "RUN" is pressed again
@@ -233,10 +238,14 @@ void runservo() {
           String dataInS = dataIn.substring(2, dataIn.length());
           speedDelay = dataInS.toInt(); // Change servo speed (delay time)
         }
-      }
+      }*/
       // Servo 1
       if (servo01SP[i] == servo01SP[i + 1]) {
         if((millis() - tracker)%100 <=1){
+          Serial.print("collected:equal :");
+          Serial.print(servo01SP[i]);
+          Serial.print("     at: ");
+          Serial.println(millis()-tracker);
           servo01Act[tracker_idx] = servo01SP[i];
           servo02Act[tracker_idx] = servo02SP[i];
           servo03Act[tracker_idx] = servo03SP[i];
@@ -249,6 +258,11 @@ void runservo() {
       if (servo01SP[i] > servo01SP[i + 1]) {
         for ( int j = servo01SP[i]; j >= servo01SP[i + 1]; j--) {
           if((millis() - tracker)%100 <=1){
+            Serial.print(i);
+            Serial.print("collected:greater :");
+          Serial.print(j);
+          Serial.print("     at: ");
+          Serial.println(millis()-tracker);
           servo01Act[tracker_idx] = j;
           servo02Act[tracker_idx] = servo02SP[i];
           servo03Act[tracker_idx] = servo03SP[i];
@@ -264,6 +278,10 @@ void runservo() {
       if (servo01SP[i] < servo01SP[i + 1]) {
         for ( int j = servo01SP[i]; j <= servo01SP[i + 1]; j++) {
           if((millis() - tracker)%100 <=1){
+            Serial.print("collected:lesser :");
+          Serial.print(j);
+          Serial.print("     at: ");
+          Serial.println(millis()-tracker);
           servo01Act[tracker_idx] = j;
           servo02Act[tracker_idx] = servo02SP[i];
           servo03Act[tracker_idx] = servo03SP[i];
