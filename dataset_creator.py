@@ -31,8 +31,8 @@ def create_gif(out_file):
         print(end - start)
         cap.release()
         cv.destroyAllWindows()
-        imageio.mimsave(out_file,images)
-        print(f"Saved... {len(images)}")
+        imageio.mimsave(out_file,images,duration=0.1)
+        print(f"Saved... Frames : {len(images)}")
         
 if(__name__ == '__main__'):      
     print("This is the Dataset maker")

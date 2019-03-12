@@ -1,5 +1,6 @@
 //#include <SoftwareSerial.h>
 #include <Servo.h>
+#include<Ticker.h>
 
 Servo servo01;
 Servo servo02;
@@ -8,20 +9,32 @@ Servo servo04;
 Servo servo05;
 Servo servo06;
 
+Ticker logger;
 //SoftwareSerial Bluetooth(3, 4); // Arduino(RX, TX) - HC-05 Bluetooth (TX, RX)
 
-int servo1Pos, servo2Pos, servo3Pos, servo4Pos, servo5Pos, servo6Pos; // current position
-int servo1PPos, servo2PPos, servo3PPos, servo4PPos, servo5PPos, servo6PPos; // previous position
+uint8_t servo1Pos, servo2Pos, servo3Pos, servo4Pos, servo5Pos, servo6Pos; // current position
+uint8_t servo1PPos, servo2PPos, servo3PPos, servo4PPos, servo5PPos, servo6PPos; // previous position
 uint8_t servo01SP[50] {60,60,90,60,60}, servo02SP[50] {150,90,90,120,120}, servo03SP[50] {35,35,35,35,35}, servo04SP[50] {140,140,40,40,40}, servo05SP[50] {85,85,85,85,85}, servo06SP[50] {80,80,80,80,120}; // for storing positions/steps
 
 uint8_t servo01Act[100], servo02Act[100], servo03Act[100], servo04Act[100], servo05Act[100], servo06Act[100]; // for actions
 uint8_t speedDelay = 20;
 uint8_t ind = 5;
-int tracker = 0;
-uint8_t tracker_idx = 0;
 String dataIn = "";
+uint8_t logger_i = 0;
+bool isLog = false;
+bool isRun = true;
 
-
+void log_data(){
+  if(isLog){
+  servo01Act[logger_i] = servo1PPos;
+  servo02Act[logger_i] = servo2PPos;
+  servo03Act[logger_i] = servo3PPos;
+  servo04Act[logger_i] = servo4PPos;
+  servo05Act[logger_i] = servo5PPos;
+  servo06Act[logger_i] = servo6PPos;
+  logger_i++;
+}
+}
 
 void setup() {
   servo01.attach(D5);
@@ -35,7 +48,7 @@ void setup() {
   delay(20);
   Serial.begin(115200);
   // Robot arm initial position
-  servo1PPos = 90;
+  servo1PPos = 60;
   servo01.write(servo1PPos);
   servo2PPos = 150;
   servo02.write(servo2PPos);
@@ -48,6 +61,7 @@ void setup() {
   servo6PPos = 80;
   servo06.write(servo6PPos);
   Serial.println("Starting");
+  logger.attach(0.1,log_data);
 }
 
 void loop() {
@@ -180,13 +194,19 @@ void loop() {
     }
     // If button "RUN" is pressed
     if (dataIn.startsWith("RUN")) {*/
-      runservo();  // Automatic mode - run the saved steps 
+     if(isRun){
+     isLog = true;
+      runservo(); // Automatic mode - run the saved steps 
+      isRun = false;
+      isLog = false;
       Serial.print("Actions collected is ");
-      Serial.println(tracker_idx);
-      for(uint8_t i = 0; i <= tracker_idx-1;i++)
+      Serial.println(logger_i);
+      for(uint8_t i = 0; i < logger_i;i++)
       {
+        Serial.print(i);
+        Serial.print(" : ");
         Serial.print(servo01Act[i]);
-        /*Serial.print(", ");
+        Serial.print(", ");
         Serial.print(servo02Act[i]);
         Serial.print(", ");
         Serial.print(servo03Act[i]);
@@ -195,9 +215,10 @@ void loop() {
         Serial.print(", ");
         Serial.print(servo05Act[i]);
         Serial.print(", ");
-        Serial.print(servo06Act[i]);*/
+        Serial.print(servo06Act[i]);
         Serial.println("    OVer...."); //,servo02Act[i],servo03Act[i],servo04Act[i],servo05Act[i],servo06Act[i]);
       }
+     }
     /*}
     // If button "RESET" is pressed
     if ( dataIn == "RESET") {
@@ -215,11 +236,6 @@ void loop() {
 // Automatic mode custom function - run the saved steps
 void runservo() {
   //while (dataIn != "RESET") {  // Run the steps over and over again until "RESET" button is pressed
-
-    tracker = millis();
-    Serial.print("The tracker is ");
-    Serial.println(tracker);
-    tracker_idx = 0;
     for (uint8_t i = 0; i <= ind - 2; i++) { // Run through all steps(index)
       /*if (Bluetooth.available() > 0) {      // Check for incomding data
         dataIn = Bluetooth.readString();
@@ -241,274 +257,119 @@ void runservo() {
       }*/
       // Servo 1
       if (servo01SP[i] == servo01SP[i + 1]) {
-        if((millis() - tracker)%100 <=1){
-          Serial.print("collected:equal :");
-          Serial.print(servo01SP[i]);
-          Serial.print("     at: ");
-          Serial.println(millis()-tracker);
-          servo01Act[tracker_idx] = servo01SP[i];
-          servo02Act[tracker_idx] = servo02SP[i];
-          servo03Act[tracker_idx] = servo03SP[i];
-          servo04Act[tracker_idx] = servo04SP[i];
-          servo05Act[tracker_idx] = servo05SP[i];
-          servo06Act[tracker_idx] = servo06SP[i];
-          tracker_idx++;
-        }
+        
       }
       if (servo01SP[i] > servo01SP[i + 1]) {
-        for ( int j = servo01SP[i]; j >= servo01SP[i + 1]; j--) {
-          if((millis() - tracker)%100 <=1){
-            Serial.print(i);
-            Serial.print("collected:greater :");
-          Serial.print(j);
-          Serial.print("     at: ");
-          Serial.println(millis()-tracker);
-          servo01Act[tracker_idx] = j;
-          servo02Act[tracker_idx] = servo02SP[i];
-          servo03Act[tracker_idx] = servo03SP[i];
-          servo04Act[tracker_idx] = servo04SP[i];
-          servo05Act[tracker_idx] = servo05SP[i];
-          servo06Act[tracker_idx] = servo06SP[i];
-          tracker_idx++;
-        }
-          servo01.write(j);
+        for (servo1PPos = servo01SP[i]; servo1PPos >= servo01SP[i + 1]; servo1PPos--) {
+          
+          servo01.write(servo1PPos);
           delay(speedDelay);
         }
       }
       if (servo01SP[i] < servo01SP[i + 1]) {
-        for ( int j = servo01SP[i]; j <= servo01SP[i + 1]; j++) {
-          if((millis() - tracker)%100 <=1){
-            Serial.print("collected:lesser :");
-          Serial.print(j);
-          Serial.print("     at: ");
-          Serial.println(millis()-tracker);
-          servo01Act[tracker_idx] = j;
-          servo02Act[tracker_idx] = servo02SP[i];
-          servo03Act[tracker_idx] = servo03SP[i];
-          servo04Act[tracker_idx] = servo04SP[i];
-          servo05Act[tracker_idx] = servo05SP[i];
-          servo06Act[tracker_idx] = servo06SP[i];
-          tracker_idx++;
-        }
-          servo01.write(j);
+        for ( servo1PPos = servo01SP[i];servo1PPos <= servo01SP[i + 1]; servo1PPos++) {
+         
+          servo01.write(servo1PPos);
           delay(speedDelay);
         }
       }
 
       // Servo 2
       if (servo02SP[i] == servo02SP[i + 1]) {
-        if((millis() - tracker)%100 <=1){
-          servo01Act[tracker_idx] = servo01SP[i];
-          servo02Act[tracker_idx] = servo02SP[i];
-          servo03Act[tracker_idx] = servo03SP[i];
-          servo04Act[tracker_idx] = servo04SP[i];
-          servo05Act[tracker_idx] = servo05SP[i];
-          servo06Act[tracker_idx] = servo06SP[i];
-          tracker_idx++;
-        }
+        
       }
       if (servo02SP[i] > servo02SP[i + 1]) {
-        for ( int j = servo02SP[i]; j >= servo02SP[i + 1]; j--) {
-          if((millis() - tracker)%100 <=1){
-          servo01Act[tracker_idx] = servo01SP[i];
-          servo02Act[tracker_idx] = j;
-          servo03Act[tracker_idx] = servo03SP[i];
-          servo04Act[tracker_idx] = servo04SP[i];
-          servo05Act[tracker_idx] = servo05SP[i];
-          servo06Act[tracker_idx] = servo06SP[i];
-          tracker_idx++;
-        }
-          servo02.write(j);
+        for ( servo2PPos = servo02SP[i]; servo2PPos >= servo02SP[i + 1]; servo2PPos--) {
+          
+          servo02.write(servo2PPos);
           delay(speedDelay);
         }
       }
       if (servo02SP[i] < servo02SP[i + 1]) {
-        for ( int j = servo02SP[i]; j <= servo02SP[i + 1]; j++) {
-          if((millis() - tracker)%100 <=1){
-          servo01Act[tracker_idx] = servo01SP[i];
-          servo02Act[tracker_idx] = j;
-          servo03Act[tracker_idx] = servo03SP[i];
-          servo04Act[tracker_idx] = servo04SP[i];
-          servo05Act[tracker_idx] = servo05SP[i];
-          servo06Act[tracker_idx] = servo06SP[i];
-          tracker_idx++;
-        }
-          servo02.write(j);
+        for ( servo2PPos= servo02SP[i]; servo2PPos <= servo02SP[i + 1]; servo2PPos++) {
+         
+          servo02.write(servo2PPos);
           delay(speedDelay);
         }
       }
 
       // Servo 3
       if (servo03SP[i] == servo03SP[i + 1]) {
-        if((millis() - tracker)%100 <=1){
-          servo01Act[tracker_idx] = servo01SP[i];
-          servo02Act[tracker_idx] = servo02SP[i];
-          servo03Act[tracker_idx] = servo03SP[i];
-          servo04Act[tracker_idx] = servo04SP[i];
-          servo05Act[tracker_idx] = servo05SP[i];
-          servo06Act[tracker_idx] = servo06SP[i];
-          tracker_idx++;
-        }
+       
       }
       if (servo03SP[i] > servo03SP[i + 1]) {
-        for ( int j = servo03SP[i]; j >= servo03SP[i + 1]; j--) {
-          if((millis() - tracker)%100 <=1){
-          servo01Act[tracker_idx] = servo01SP[i];
-          servo02Act[tracker_idx] = servo02SP[i];
-          servo03Act[tracker_idx] = j;
-          servo04Act[tracker_idx] = servo04SP[i];
-          servo05Act[tracker_idx] = servo05SP[i];
-          servo06Act[tracker_idx] = servo06SP[i];
-          tracker_idx++;
-        }
-          servo03.write(j);
+        for ( servo3PPos = servo03SP[i]; servo3PPos >= servo03SP[i + 1]; servo3PPos--) {
+          
+          servo03.write(servo3PPos);
           delay(speedDelay);
         }
       }
       if (servo03SP[i] < servo03SP[i + 1]) {
-        for ( int j = servo03SP[i]; j <= servo03SP[i + 1]; j++) {
-          if((millis() - tracker)%100 <=1){
-          servo01Act[tracker_idx] = servo01SP[i];
-          servo02Act[tracker_idx] = servo02SP[i];
-          servo03Act[tracker_idx] = j;
-          servo04Act[tracker_idx] = servo04SP[i];
-          servo05Act[tracker_idx] = servo05SP[i];
-          servo06Act[tracker_idx] = servo06SP[i];
-          tracker_idx++;
-        }
-          servo03.write(j);
+        for (servo3PPos = servo03SP[i]; servo3PPos <= servo03SP[i + 1]; servo3PPos++) {
+          
+          servo03.write(servo3PPos);
           delay(speedDelay);
         }
       }
 
       // Servo 4
       if (servo04SP[i] == servo04SP[i + 1]) {
-        if((millis() - tracker)%100 <=1){
-          servo01Act[tracker_idx] = servo01SP[i];
-          servo02Act[tracker_idx] = servo02SP[i];
-          servo03Act[tracker_idx] = servo03SP[i];
-          servo04Act[tracker_idx] = servo04SP[i];
-          servo05Act[tracker_idx] = servo05SP[i];
-          servo06Act[tracker_idx] = servo06SP[i];
-          tracker_idx++;
-        }
+        
       }
       if (servo04SP[i] > servo04SP[i + 1]) {
-        for ( int j = servo04SP[i]; j >= servo04SP[i + 1]; j--) {
-          if((millis() - tracker)%100 <=1){
-          servo01Act[tracker_idx] = servo01SP[i];
-          servo02Act[tracker_idx] = servo02SP[i];
-          servo03Act[tracker_idx] = servo03SP[i];
-          servo04Act[tracker_idx] = j;
-          servo05Act[tracker_idx] = servo05SP[i];
-          servo06Act[tracker_idx] = servo06SP[i];
-          tracker_idx++;
-        }
-          servo04.write(j);
+        for ( servo4PPos = servo04SP[i]; servo4PPos >= servo04SP[i + 1]; servo4PPos--) {
+          
+          servo04.write(servo4PPos);
           delay(speedDelay);
         }
       }
       if (servo04SP[i] < servo04SP[i + 1]) {
-        for ( int j = servo04SP[i]; j <= servo04SP[i + 1]; j++) {
-          if((millis() - tracker)%100 <=1){
-          servo01Act[tracker_idx] = servo01SP[i];
-          servo02Act[tracker_idx] = servo02SP[i];
-          servo03Act[tracker_idx] = servo03SP[i];
-          servo04Act[tracker_idx] = j;
-          servo05Act[tracker_idx] = servo05SP[i];
-          servo06Act[tracker_idx] = servo06SP[i];
-          tracker_idx++;
-        }
-          servo04.write(j);
+        for ( servo4PPos = servo04SP[i]; servo4PPos <= servo04SP[i + 1]; servo4PPos++) {
+          
+          servo04.write(servo4PPos);
           delay(speedDelay);
         }
       }
 
       // Servo 5
       if (servo05SP[i] == servo05SP[i + 1]) {
-        if((millis() - tracker)%100 <=1){
-          servo01Act[tracker_idx] = servo01SP[i];
-          servo02Act[tracker_idx] = servo02SP[i];
-          servo03Act[tracker_idx] = servo03SP[i];
-          servo04Act[tracker_idx] = servo04SP[i];
-          servo05Act[tracker_idx] = servo05SP[i];
-          servo06Act[tracker_idx] = servo06SP[i];
-          tracker_idx++;
-        }
+       
       }
       if (servo05SP[i] > servo05SP[i + 1]) {
-        for ( int j = servo05SP[i]; j >= servo05SP[i + 1]; j--) {
-          if((millis() - tracker)%100 <=1){
-          servo01Act[tracker_idx] = servo01SP[i];
-          servo02Act[tracker_idx] = servo02SP[i];
-          servo03Act[tracker_idx] = servo03SP[i];
-          servo04Act[tracker_idx] = servo04SP[i];
-          servo05Act[tracker_idx] = j;
-          servo06Act[tracker_idx] = servo06SP[i];
-          tracker_idx++;
-        }
-          servo05.write(j);
+        for (servo5PPos = servo05SP[i]; servo5PPos >= servo05SP[i + 1]; servo5PPos--) {
+          
+          servo05.write(servo5PPos);
           delay(speedDelay);
         }
       }
       if (servo05SP[i] < servo05SP[i + 1]) {
-        for ( int j = servo05SP[i]; j <= servo05SP[i + 1]; j++) {
-          if((millis() - tracker)%100 <=1){
-          servo01Act[tracker_idx] = servo01SP[i];
-          servo02Act[tracker_idx] = servo02SP[i];
-          servo03Act[tracker_idx] = servo03SP[i];
-          servo04Act[tracker_idx] = servo04SP[i];
-          servo05Act[tracker_idx] = j;
-          servo06Act[tracker_idx] = servo06SP[i];
-          tracker_idx++;
-        }
-          servo05.write(j);
+        for (servo5PPos = servo05SP[i]; servo5PPos <= servo05SP[i + 1]; servo5PPos++) {
+          
+          servo05.write(servo5PPos);
           delay(speedDelay);
         }
       }
 
       // Servo 6
       if (servo06SP[i] == servo06SP[i + 1]) {
-        if((millis() - tracker)%100 <=1){
-          servo01Act[tracker_idx] = servo01SP[i];
-          servo02Act[tracker_idx] = servo02SP[i];
-          servo03Act[tracker_idx] = servo03SP[i];
-          servo04Act[tracker_idx] = servo04SP[i];
-          servo05Act[tracker_idx] = servo05SP[i];
-          servo06Act[tracker_idx] = servo06SP[i];
-          tracker_idx++;
-        }
+        
       }
       if (servo06SP[i] > servo06SP[i + 1]) {
-        for ( int j = servo06SP[i]; j >= servo06SP[i + 1]; j--) {
-          if((millis() - tracker)%100 <=1){
-          servo01Act[tracker_idx] = servo01SP[i];
-          servo02Act[tracker_idx] = servo02SP[i];
-          servo03Act[tracker_idx] = servo03SP[i];
-          servo04Act[tracker_idx] = servo04SP[i];
-          servo05Act[tracker_idx] = servo05SP[i];
-          servo06Act[tracker_idx] = j;
-          tracker_idx++;
-        }
-          servo06.write(j);
+        for ( servo6PPos = servo06SP[i]; servo6PPos >= servo06SP[i + 1]; servo6PPos--) {
+         
+          servo06.write(servo6PPos);
           delay(speedDelay);
         }
       }
       if (servo06SP[i] < servo06SP[i + 1]) {
-        for ( int j = servo06SP[i]; j <= servo06SP[i + 1]; j++) {
-          if((millis() - tracker)%100 <=1){
-          servo01Act[tracker_idx] = servo01SP[i];
-          servo02Act[tracker_idx] = servo02SP[i];
-          servo03Act[tracker_idx] = servo03SP[i];
-          servo04Act[tracker_idx] = servo04SP[i];
-          servo05Act[tracker_idx] = servo05SP[i];
-          servo06Act[tracker_idx] = j;
-          tracker_idx++;
-        }
-          servo06.write(j);
+        for ( servo6PPos = servo06SP[i];servo6PPos <= servo06SP[i + 1]; servo6PPos++) {
+        
+          servo06.write(servo6PPos);
           delay(speedDelay);
         }
       }
     }
   //}
 }
+
+
